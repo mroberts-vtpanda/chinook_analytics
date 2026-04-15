@@ -1,0 +1,71 @@
+version: 2
+
+models:
+  - name: int_invoice_lines_enriched
+    description: "One row per invoice line with invoice header details and full track/album/artist/genre context resolved. Joins stg_chinook__invoice_lines to stg_chinook__invoices and int_tracks_enriched. Building block for fact_invoice_lines and fact_invoices."
+    columns:
+      - name: invoice_line_id
+        description: "Primary key. Unique identifier for each invoice line."
+        data_tests:
+          - unique
+          - not_null
+      - name: invoice_id
+        description: "Foreign key to the invoice header."
+        data_tests:
+          - not_null
+      - name: track_id
+        description: "Foreign key to the track."
+        data_tests:
+          - not_null
+      - name: customer_id
+        description: "Foreign key to the customer, sourced from the invoice header."
+        data_tests:
+          - not_null
+      - name: invoice_timestamp
+        description: "Date and time the invoice was created."
+        data_tests:
+          - not_null
+      - name: unit_price_amount
+        description: "Unit price of the track on this line in USD."
+        data_tests:
+          - not_null
+      - name: quantity
+        description: "Number of units purchased on this line."
+        data_tests:
+          - not_null
+      - name: line_total_amount
+        description: "Total for this line (unit_price_amount * quantity) in USD."
+        data_tests:
+          - not_null
+      - name: billing_address
+        description: "Billing street address from the invoice header. Nullable."
+      - name: billing_city
+        description: "Billing city from the invoice header. Nullable."
+      - name: billing_state
+        description: "Billing state from the invoice header. Nullable."
+      - name: billing_country
+        description: "Billing country from the invoice header. Nullable."
+      - name: billing_postal_code
+        description: "Billing postal code from the invoice header. Nullable."
+      - name: invoice_total_amount
+        description: "Total amount of the invoice header in USD."
+        data_tests:
+          - not_null
+      - name: track_name
+        description: "Name of the track."
+      - name: album_id
+        description: "Album identifier. Nullable."
+      - name: album_title
+        description: "Album title. Nullable."
+      - name: artist_id
+        description: "Artist identifier. Nullable."
+      - name: artist_name
+        description: "Artist name. Nullable."
+      - name: genre_id
+        description: "Genre identifier. Nullable."
+      - name: genre_name
+        description: "Genre name. Nullable."
+      - name: media_type_id
+        description: "Media type identifier."
+      - name: media_type_name
+        description: "Media type name."
