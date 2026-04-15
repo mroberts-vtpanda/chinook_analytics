@@ -41,5 +41,9 @@ models:
         description: "Email address. Nullable."
       - name: reports_to_id
         description: "Foreign key to dim_employees (self-referential). Nullable — the top-level employee has no manager."
+        data_tests:
+          - relationships:
+              to: ref('dim_employees')
+              field: employee_id
       - name: reports_to_name
         description: "Full name of the manager (first_name || ' ' || last_name). Nullable when reports_to_id is null."
