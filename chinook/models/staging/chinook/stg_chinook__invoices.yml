@@ -1,0 +1,36 @@
+version: 2
+
+models:
+  - name: stg_chinook__invoices
+    description: "One row per invoice header. Renames source columns from the Invoice table to snake_case."
+    columns:
+      - name: invoice_id
+        description: "Primary key. Unique identifier for each invoice."
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: "Foreign key to stg_chinook__customers."
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_chinook__customers')
+              field: customer_id
+      - name: invoice_timestamp
+        description: "Date and time the invoice was created."
+        data_tests:
+          - not_null
+      - name: billing_address
+        description: "Billing street address. Nullable."
+      - name: billing_city
+        description: "Billing city. Nullable."
+      - name: billing_state
+        description: "Billing state or province. Nullable."
+      - name: billing_country
+        description: "Billing country. Nullable."
+      - name: billing_postal_code
+        description: "Billing postal code. Nullable."
+      - name: total_amount
+        description: "Total invoice amount in USD."
+        data_tests:
+          - not_null
