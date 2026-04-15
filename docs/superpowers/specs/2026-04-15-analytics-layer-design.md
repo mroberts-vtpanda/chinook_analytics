@@ -102,7 +102,7 @@ models/
 | `stg_chinook__albums` | `Album` | Rename `AlbumId`, `Title`, `ArtistId` |
 | `stg_chinook__artists` | `Artist` | Rename `ArtistId`, `Name` |
 | `stg_chinook__customers` | `Customer` | Rename all columns; `SupportRepId` → `support_rep_id` |
-| `stg_chinook__employees` | `Employee` | Rename all columns; cast `BirthDate`/`HireDate` to timestamp |
+| `stg_chinook__employees` | `Employee` | Rename all columns; cast `BirthDate`/`HireDate` to date (`birth_date`, `hire_date`) |
 | `stg_chinook__genres` | `Genre` | Rename `GenreId`, `Name` |
 | `stg_chinook__invoice_lines` | `InvoiceLine` | Rename all columns; `UnitPrice` → `unit_price_amount` |
 | `stg_chinook__invoices` | `Invoice` | Rename all columns; `InvoiceDate` → `invoice_timestamp`; `Total` → `total_amount` |
