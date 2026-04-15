@@ -1,0 +1,24 @@
+version: 2
+
+models:
+  - name: dim_albums
+    description: "Dimension table. One row per album with artist name resolved. Grain: album_id."
+    columns:
+      - name: album_id
+        description: "Primary key. Unique identifier for each album."
+        data_tests:
+          - unique
+          - not_null
+      - name: album_title
+        description: "Title of the album."
+        data_tests:
+          - not_null
+      - name: artist_id
+        description: "Foreign key to dim_artists."
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_artists')
+              field: artist_id
+      - name: artist_name
+        description: "Name of the artist. Nullable in source."
