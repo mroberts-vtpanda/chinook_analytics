@@ -1,0 +1,20 @@
+version: 2
+
+models:
+  - name: stg_chinook__playlist_tracks
+    description: "One row per playlist-track association. Composite primary key of playlist_id + track_id. Renames source columns from the PlaylistTrack table to snake_case."
+    columns:
+      - name: playlist_id
+        description: "Part of composite primary key. Foreign key to stg_chinook__playlists."
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_chinook__playlists')
+              field: playlist_id
+      - name: track_id
+        description: "Part of composite primary key. Foreign key to stg_chinook__tracks."
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_chinook__tracks')
+              field: track_id
