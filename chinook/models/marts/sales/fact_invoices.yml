@@ -1,0 +1,40 @@
+version: 2
+
+models:
+  - name: fact_invoices
+    description: "Fact table. One row per invoice header. Grain: invoice_id. Use for invoice-level analysis — totals, geography, customer. For track-level analysis use fact_invoice_lines."
+    columns:
+      - name: invoice_id
+        description: "Primary key. Unique identifier for each invoice."
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: "Foreign key to dim_customers."
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customers')
+              field: customer_id
+      - name: invoice_timestamp
+        description: "Date and time the invoice was created."
+        data_tests:
+          - not_null
+      - name: billing_address
+        description: "Billing street address. Nullable."
+      - name: billing_city
+        description: "Billing city. Nullable."
+      - name: billing_state
+        description: "Billing state or province. Nullable."
+      - name: billing_country
+        description: "Billing country. Nullable."
+      - name: billing_postal_code
+        description: "Billing postal code. Nullable."
+      - name: total_amount
+        description: "Total invoice amount in USD, sourced from the invoice header."
+        data_tests:
+          - not_null
+      - name: invoice_line_count
+        description: "Number of line items on this invoice."
+        data_tests:
+          - not_null
