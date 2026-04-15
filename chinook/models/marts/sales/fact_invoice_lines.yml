@@ -1,0 +1,58 @@
+version: 2
+
+models:
+  - name: fact_invoice_lines
+    description: "Fact table. One row per invoice line — the most granular sales event. Grain: invoice_line_id. Use for track-level, artist-level, and genre-level sales analysis."
+    columns:
+      - name: invoice_line_id
+        description: "Primary key. Unique identifier for each invoice line."
+        data_tests:
+          - unique
+          - not_null
+      - name: invoice_id
+        description: "Foreign key to fact_invoices."
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('fact_invoices')
+              field: invoice_id
+      - name: track_id
+        description: "Foreign key to dim_tracks."
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_tracks')
+              field: track_id
+      - name: customer_id
+        description: "Foreign key to dim_customers."
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customers')
+              field: customer_id
+      - name: invoice_timestamp
+        description: "Date and time the invoice was created."
+        data_tests:
+          - not_null
+      - name: unit_price_amount
+        description: "Unit price of the track on this line in USD."
+        data_tests:
+          - not_null
+      - name: quantity
+        description: "Number of units purchased."
+        data_tests:
+          - not_null
+      - name: line_total_amount
+        description: "Total for this line (unit_price_amount * quantity) in USD."
+        data_tests:
+          - not_null
+      - name: billing_country
+        description: "Billing country from the invoice header. Nullable. Useful for geographic slicing without joining dim_customers."
+      - name: artist_id
+        description: "Foreign key to dim_artists. Nullable. Useful for artist-level slicing without joining dim_tracks."
+        data_tests:
+          - relationships:
+              to: ref('dim_artists')
+              field: artist_id
+      - name: genre_id
+        description: "Genre identifier. Nullable. Useful for genre-level slicing without joining dim_tracks."
