@@ -1,0 +1,47 @@
+version: 2
+
+models:
+  - name: stg_chinook__employees
+    description: "One row per employee. Renames source columns from the Employee table to snake_case. Casts BirthDate and HireDate from TIMESTAMP_NTZ to DATE."
+    columns:
+      - name: employee_id
+        description: "Primary key. Unique identifier for each employee."
+        data_tests:
+          - unique
+          - not_null
+      - name: last_name
+        description: "Employee last name."
+        data_tests:
+          - not_null
+      - name: first_name
+        description: "Employee first name."
+        data_tests:
+          - not_null
+      - name: title
+        description: "Job title. Nullable."
+      - name: reports_to_id
+        description: "Foreign key to stg_chinook__employees (self-referential). Nullable — the top-level employee has no manager."
+        data_tests:
+          - relationships:
+              to: ref('stg_chinook__employees')
+              field: employee_id
+      - name: birth_date
+        description: "Date of birth. Cast from TIMESTAMP_NTZ to DATE."
+      - name: hire_date
+        description: "Date the employee was hired. Cast from TIMESTAMP_NTZ to DATE."
+      - name: address
+        description: "Street address. Nullable."
+      - name: city
+        description: "City. Nullable."
+      - name: state
+        description: "State or province. Nullable."
+      - name: country
+        description: "Country. Nullable."
+      - name: postal_code
+        description: "Postal code. Nullable."
+      - name: phone
+        description: "Phone number. Nullable."
+      - name: fax
+        description: "Fax number. Nullable."
+      - name: email
+        description: "Email address. Nullable."

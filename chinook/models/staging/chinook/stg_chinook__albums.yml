@@ -1,0 +1,22 @@
+version: 2
+
+models:
+  - name: stg_chinook__albums
+    description: "One row per album. Renames source columns from the Album table to snake_case."
+    columns:
+      - name: album_id
+        description: "Primary key. Unique identifier for each album."
+        data_tests:
+          - unique
+          - not_null
+      - name: album_title
+        description: "Title of the album."
+        data_tests:
+          - not_null
+      - name: artist_id
+        description: "Foreign key to stg_chinook__artists."
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_chinook__artists')
+              field: artist_id

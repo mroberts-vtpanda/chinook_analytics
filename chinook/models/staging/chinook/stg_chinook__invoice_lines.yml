@@ -1,0 +1,33 @@
+version: 2
+
+models:
+  - name: stg_chinook__invoice_lines
+    description: "One row per invoice line item. Renames source columns from the InvoiceLine table to snake_case."
+    columns:
+      - name: invoice_line_id
+        description: "Primary key. Unique identifier for each invoice line."
+        data_tests:
+          - unique
+          - not_null
+      - name: invoice_id
+        description: "Foreign key to stg_chinook__invoices."
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_chinook__invoices')
+              field: invoice_id
+      - name: track_id
+        description: "Foreign key to stg_chinook__tracks."
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_chinook__tracks')
+              field: track_id
+      - name: unit_price_amount
+        description: "Unit price of the track on this invoice line in USD."
+        data_tests:
+          - not_null
+      - name: quantity
+        description: "Number of units purchased on this line."
+        data_tests:
+          - not_null

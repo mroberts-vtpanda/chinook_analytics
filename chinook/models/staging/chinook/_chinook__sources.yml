@@ -1,0 +1,29 @@
+version: 2
+
+sources:
+  - name: chinook
+    database: chinook
+    schema: chinook
+    tables:
+      - name: artists
+        identifier: artist
+      - name: albums
+        identifier: album
+      - name: tracks
+        identifier: track
+      - name: genres
+        identifier: genre
+      - name: media_types
+        identifier: mediatype
+      - name: customers
+        identifier: customer
+      - name: employees
+        identifier: employee
+      - name: invoices
+        identifier: invoice
+      - name: invoice_lines
+        identifier: invoiceline
+      - name: playlists
+        identifier: playlist
+      - name: playlist_tracks
+        identifier: playlisttrack
