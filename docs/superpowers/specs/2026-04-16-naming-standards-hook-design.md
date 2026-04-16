@@ -74,7 +74,7 @@ Example violation: `model name 'foo_bar' does not match folder 'staging/chinook/
 ### Rule N3 — All names are `snake_case`
 
 - File stems and folder names under `chinook/models/` must match `^[a-z0-9_]+$` and not start with a digit.
-- Files whose stem starts with a leading underscore (e.g. `_chinook__sources.yml`) are exempt from the leading-character rule but still must otherwise be `snake_case`.
+- YAML files whose stem starts with a leading underscore (e.g. `_chinook__sources.yml`) are exempt from the leading-character rule but the rest of the stem must still be `snake_case`. SQL files have no leading-underscore exception.
 
 ### Rule N4 — Materialization matches layer
 
@@ -133,7 +133,7 @@ Permission allowlists stay in `.claude/settings.local.json` (per-machine, gitign
 Responsibilities, in order:
 
 1. Read tool-input JSON from stdin (Claude Code passes the matched tool's input here).
-2. Extract `tool_input.command`. If it does not start with `git commit` (allowing leading whitespace), exit `0` immediately so other Bash calls are unaffected.
+2. Extract `tool_input.command`. Match against the regex `^\s*git\s+commit(\s|$)` — i.e. `git commit` as a whole word, optionally followed by arguments. If no match (e.g. `git status`, `git commit-tree`, `gitk`), exit `0` immediately so other Bash calls are unaffected.
 3. If the command contains `--no-verify`, print `[dbt_pre_commit] --no-verify detected, skipping checks` to stderr and exit `0`.
 4. If `$SKIP_DBT_CHECKS` is `1`, print `[dbt_pre_commit] SKIP_DBT_CHECKS=1, skipping checks` to stderr and exit `0`.
 5. Run the two validators in sequence, capturing combined stdout+stderr. If both exit `0`, exit `0`.
