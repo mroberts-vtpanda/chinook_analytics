@@ -191,15 +191,78 @@ def check_n2_sql_yml_pairing(models_root: Path) -> Iterator[Violation]:
             )
 
 
+_INLINE_MATERIALIZED_RE = re.compile(
+    r"{{\s*config\s*\([^}]*?materialized\s*=\s*['\"](\w+)['\"]",
+    re.DOTALL,
+)
+
+EXPECTED_MATERIALIZATION = {
+    "staging": "view",
+    "intermediate": "view",
+    "marts": "table",
+}
+
+
+def _resolve_materialization_from_project(
+    project_config: dict, layer: str, project_name: str | None
+) -> str | None:
+    """Walk project_config['models'][<project>][<layer>] looking for a +materialized key.
+
+    Returns the configured value or None if not found at this layer.
+    """
+    models = (project_config or {}).get("models") or {}
+    if project_name and project_name in models:
+        layer_cfg = (models[project_name] or {}).get(layer) or {}
+    else:
+        # No project namespace — try every top-level key looking for the layer
+        layer_cfg = {}
+        for v in models.values():
+            if isinstance(v, dict) and layer in v:
+                layer_cfg = v[layer] or {}
+                break
+    return layer_cfg.get("+materialized") if isinstance(layer_cfg, dict) else None
+
+
+def check_n4_materialization(models_root: Path, project_root: Path) -> Iterator[Violation]:
+    """N4: resolved materialization matches the expected value for the layer."""
+    project_yml = project_root / "dbt_project.yml"
+    project_config: dict = {}
+    project_name: str | None = None
+    if project_yml.is_file():
+        with open(project_yml) as f:
+            project_config = yaml.safe_load(f) or {}
+        project_name = project_config.get("name")
+
+    for sql in sorted(models_root.rglob("*.sql")):
+        rel = sql.relative_to(models_root)
+        layer = rel.parts[0] if rel.parts else ""
+        expected = EXPECTED_MATERIALIZATION.get(layer)
+        if expected is None:
+            continue
+        text = sql.read_text()
+        m = _INLINE_MATERIALIZED_RE.search(text)
+        if m:
+            actual = m.group(1)
+        else:
+            from_project = _resolve_materialization_from_project(project_config, layer, project_name)
+            actual = from_project if from_project else "view"  # dbt default
+        if actual != expected:
+            yield Violation(
+                path=sql, edit=sql,
+                message=f"model '{sql.stem}' has materialization '{actual}', expected '{expected}' for layer '{layer}'",
+            )
+
+
 def run_checks(models_root: Path, project_root: Path) -> list[Violation]:
     """Run all rule checks against the given models tree. Returns sorted violations.
 
-    Rules: N1, N2, N3.
+    Rules: N1, N2, N3, N4.
     """
     violations: list[Violation] = []
     violations.extend(check_n1_prefix_matches_folder(models_root))
     violations.extend(check_n2_sql_yml_pairing(models_root))
     violations.extend(check_n3_snake_case(models_root))
+    violations.extend(check_n4_materialization(models_root, project_root))
     return sorted(violations, key=lambda v: (str(v.path), v.message))
 
 

@@ -128,5 +128,39 @@ class RuleN3Tests(FixtureMixin, unittest.TestCase):
         self.assertGreaterEqual(len(violations), 1)
 
 
+class RuleN4Tests(FixtureMixin, unittest.TestCase):
+    def test_marts_with_view_materialization_is_flagged(self) -> None:
+        # Inline config that overrides the layer default
+        sql = self.models_root / "marts" / "customers" / "dim_customers.sql"
+        sql.write_text(
+            "{{ config(materialized='view') }}\n"
+            "select customer_id, first_name from {{ ref('int_customers_enriched') }}\n"
+        )
+        violations = [v for v in self.run_validator() if "materialization" in v.message and "marts" in v.message]
+        self.assertEqual(len(violations), 1)
+        self.assertIn("'view'", violations[0].message)
+        self.assertIn("'table'", violations[0].message)
+
+    def test_staging_with_table_materialization_is_flagged(self) -> None:
+        sql = self.models_root / "staging" / "chinook" / "stg_chinook__customers.sql"
+        sql.write_text(
+            "{{ config(materialized='table') }}\n"
+            "select customerid as customer_id, firstname as first_name "
+            "from {{ source('chinook', 'customer') }}\n"
+        )
+        violations = [v for v in self.run_validator() if "materialization" in v.message and "staging" in v.message]
+        self.assertEqual(len(violations), 1)
+
+    def test_inline_config_matching_layer_is_not_flagged(self) -> None:
+        # Inline config that matches the layer default — should not flag
+        sql = self.models_root / "marts" / "customers" / "dim_customers.sql"
+        sql.write_text(
+            "{{ config(materialized='table') }}\n"
+            "select customer_id, first_name from {{ ref('int_customers_enriched') }}\n"
+        )
+        violations = [v for v in self.run_validator() if "materialization" in v.message]
+        self.assertEqual(violations, [])
+
+
 if __name__ == "__main__":
     unittest.main()
