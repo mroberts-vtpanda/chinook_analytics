@@ -96,5 +96,37 @@ class RuleN2Tests(FixtureMixin, unittest.TestCase):
         self.assertEqual(violations, [])
 
 
+class RuleN3Tests(FixtureMixin, unittest.TestCase):
+    def test_camelcase_sql_filename_is_flagged(self) -> None:
+        bad = self.models_root / "marts" / "customers" / "DimCustomers.sql"
+        (self.models_root / "marts" / "customers" / "dim_customers.sql").rename(bad)
+        (self.models_root / "marts" / "customers" / "dim_customers.yml").rename(
+            self.models_root / "marts" / "customers" / "DimCustomers.yml"
+        )
+        violations = [v for v in self.run_validator() if "snake_case" in v.message and "DimCustomers" in v.message]
+        self.assertGreaterEqual(len(violations), 1)
+
+    def test_leading_underscore_sql_is_flagged(self) -> None:
+        bad = self.models_root / "marts" / "customers" / "_dim_customers.sql"
+        (self.models_root / "marts" / "customers" / "dim_customers.sql").rename(bad)
+        (self.models_root / "marts" / "customers" / "dim_customers.yml").rename(
+            self.models_root / "marts" / "customers" / "_dim_customers.yml"
+        )
+        violations = [v for v in self.run_validator() if "snake_case" in v.message and v.path.suffix == ".sql"]
+        self.assertEqual(len(violations), 1)
+
+    def test_leading_underscore_yml_is_allowed(self) -> None:
+        # _chinook__sources.yml exists in the clean fixture; should not trip snake_case
+        violations = [v for v in self.run_validator() if "snake_case" in v.message and "_chinook__sources" in v.message]
+        self.assertEqual(violations, [])
+
+    def test_camelcase_folder_is_flagged(self) -> None:
+        old = self.models_root / "marts" / "customers"
+        new = self.models_root / "marts" / "Customers"
+        old.rename(new)
+        violations = [v for v in self.run_validator() if "snake_case" in v.message and "Customers" in v.message]
+        self.assertGreaterEqual(len(violations), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

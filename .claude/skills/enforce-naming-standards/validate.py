@@ -132,6 +132,45 @@ def check_n1_prefix_matches_folder(models_root: Path) -> Iterator[Violation]:
                 )
 
 
+SNAKE_CASE_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+
+
+def check_n3_snake_case(models_root: Path) -> Iterator[Violation]:
+    """N3: file stems and folder names under chinook/models/ are snake_case.
+
+    YAML files may begin with one or more leading underscores (e.g.
+    `_chinook__sources.yml`); the rest of the stem must still match
+    SNAKE_CASE_RE. SQL files have no leading-underscore exception.
+    """
+    seen_dirs: set[Path] = set()
+    for entry in sorted(models_root.rglob("*")):
+        if entry.is_dir():
+            if entry in seen_dirs:
+                continue
+            seen_dirs.add(entry)
+            name = entry.name
+            if not SNAKE_CASE_RE.match(name):
+                yield Violation(
+                    path=entry, edit=entry,
+                    message=f"folder name '{name}' is not snake_case",
+                )
+        elif entry.suffix in (".sql", ".yml"):
+            stem = entry.stem
+            if entry.suffix == ".yml" and stem.startswith("_"):
+                trimmed = stem.lstrip("_")
+                if trimmed and not SNAKE_CASE_RE.match(trimmed):
+                    yield Violation(
+                        path=entry, edit=entry,
+                        message=f"file name '{entry.name}' is not snake_case after leading underscores",
+                    )
+            else:
+                if not SNAKE_CASE_RE.match(stem):
+                    yield Violation(
+                        path=entry, edit=entry,
+                        message=f"file name '{entry.name}' is not snake_case",
+                    )
+
+
 def check_n2_sql_yml_pairing(models_root: Path) -> Iterator[Violation]:
     """N2: Every .sql has a sibling .yml; every .yml (other than _*.yml) has a sibling .sql."""
     for sql in sorted(models_root.rglob("*.sql")):
@@ -155,11 +194,12 @@ def check_n2_sql_yml_pairing(models_root: Path) -> Iterator[Violation]:
 def run_checks(models_root: Path, project_root: Path) -> list[Violation]:
     """Run all rule checks against the given models tree. Returns sorted violations.
 
-    Rules: N1, N2.
+    Rules: N1, N2, N3.
     """
     violations: list[Violation] = []
     violations.extend(check_n1_prefix_matches_folder(models_root))
     violations.extend(check_n2_sql_yml_pairing(models_root))
+    violations.extend(check_n3_snake_case(models_root))
     return sorted(violations, key=lambda v: (str(v.path), v.message))
 
 
