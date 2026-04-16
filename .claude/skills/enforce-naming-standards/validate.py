@@ -97,13 +97,48 @@ def _resolve_target(arg: str | None) -> tuple[Path, Path, Path]:
     return target, models_root, project_root
 
 
+def check_n1_prefix_matches_folder(models_root: Path) -> Iterator[Violation]:
+    """N1: Model file stem must match the prefix expected for its folder."""
+    for sql in sorted(models_root.rglob("*.sql")):
+        rel = sql.relative_to(models_root)
+        parts = rel.parts
+        stem = sql.stem
+        layer = parts[0] if parts else ""
+        if layer == "staging":
+            if len(parts) < 3:
+                yield Violation(
+                    path=sql, edit=sql,
+                    message=f"staging file '{rel}' must live in 'staging/<source>/'",
+                )
+                continue
+            source = parts[1]
+            expected = f"stg_{source}__"
+            if not stem.startswith(expected):
+                yield Violation(
+                    path=sql, edit=sql,
+                    message=f"model name '{stem}' does not match folder 'staging/{source}/' (expected prefix '{expected}')",
+                )
+        elif layer == "intermediate":
+            if not stem.startswith("int_"):
+                yield Violation(
+                    path=sql, edit=sql,
+                    message=f"model name '{stem}' in 'intermediate/' must start with 'int_'",
+                )
+        elif layer == "marts":
+            if not (stem.startswith("fact_") or stem.startswith("dim_")):
+                yield Violation(
+                    path=sql, edit=sql,
+                    message=f"model name '{stem}' in 'marts/' must start with 'fact_' or 'dim_'",
+                )
+
+
 def run_checks(models_root: Path, project_root: Path) -> list[Violation]:
     """Run all rule checks against the given models tree. Returns sorted violations.
 
-    No rules are implemented yet — they are added in subsequent tasks (N1–N5).
+    Rules: N1.
     """
     violations: list[Violation] = []
-    # Rules will be added in subsequent tasks.
+    violations.extend(check_n1_prefix_matches_folder(models_root))
     return sorted(violations, key=lambda v: (str(v.path), v.message))
 
 

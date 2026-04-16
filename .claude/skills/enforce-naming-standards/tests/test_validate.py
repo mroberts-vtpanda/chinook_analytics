@@ -42,5 +42,40 @@ class CleanFixtureTests(FixtureMixin, unittest.TestCase):
         self.assertEqual(self.run_validator(), [])
 
 
+class RuleN1Tests(FixtureMixin, unittest.TestCase):
+    def test_staging_file_with_wrong_prefix_is_flagged(self) -> None:
+        # Rename the staging model to break the stg_chinook__ prefix
+        bad = self.models_root / "staging" / "chinook" / "customers.sql"
+        (self.models_root / "staging" / "chinook" / "stg_chinook__customers.sql").rename(bad)
+        # Also rename the YAML so we don't trip rule N2 in this test
+        (self.models_root / "staging" / "chinook" / "stg_chinook__customers.yml").rename(
+            self.models_root / "staging" / "chinook" / "customers.yml"
+        )
+        violations = [v for v in self.run_validator() if "prefix" in v.message or "match folder" in v.message]
+        self.assertEqual(len(violations), 1)
+        self.assertIn("stg_chinook__", violations[0].message)
+        self.assertEqual(violations[0].path, bad)
+
+    def test_intermediate_file_with_wrong_prefix_is_flagged(self) -> None:
+        bad = self.models_root / "intermediate" / "customers_enriched.sql"
+        (self.models_root / "intermediate" / "int_customers_enriched.sql").rename(bad)
+        (self.models_root / "intermediate" / "int_customers_enriched.yml").rename(
+            self.models_root / "intermediate" / "customers_enriched.yml"
+        )
+        violations = [v for v in self.run_validator() if "int_" in v.message]
+        self.assertEqual(len(violations), 1)
+        self.assertEqual(violations[0].path, bad)
+
+    def test_marts_file_with_wrong_prefix_is_flagged(self) -> None:
+        bad = self.models_root / "marts" / "customers" / "customers.sql"
+        (self.models_root / "marts" / "customers" / "dim_customers.sql").rename(bad)
+        (self.models_root / "marts" / "customers" / "dim_customers.yml").rename(
+            self.models_root / "marts" / "customers" / "customers.yml"
+        )
+        violations = [v for v in self.run_validator() if "fact_" in v.message or "dim_" in v.message]
+        self.assertEqual(len(violations), 1)
+        self.assertEqual(violations[0].path, bad)
+
+
 if __name__ == "__main__":
     unittest.main()
