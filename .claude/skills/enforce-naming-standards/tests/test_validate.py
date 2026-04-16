@@ -11,6 +11,8 @@ import sys
 import unittest
 from pathlib import Path
 
+import yaml
+
 # Make validate.py importable
 SKILL_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SKILL_ROOT))
@@ -75,6 +77,19 @@ class RuleN1Tests(FixtureMixin, unittest.TestCase):
         violations = [v for v in self.run_validator() if "fact_" in v.message or "dim_" in v.message]
         self.assertEqual(len(violations), 1)
         self.assertEqual(violations[0].path, bad)
+
+    def test_marts_file_directly_under_marts_without_domain_is_flagged(self) -> None:
+        # Place a fact/dim file directly under marts/ with no domain subfolder
+        bad_sql = self.models_root / "marts" / "dim_orphan.sql"
+        bad_yml = self.models_root / "marts" / "dim_orphan.yml"
+        bad_sql.write_text("select 1 as customer_id\n")
+        bad_yml.write_text(
+            "version: 2\nmodels:\n  - name: dim_orphan\n    description: orphan\n"
+            "    columns:\n      - name: customer_id\n        description: pk\n"
+        )
+        violations = [v for v in self.run_validator() if "marts/<domain>/" in v.message]
+        self.assertEqual(len(violations), 1)
+        self.assertEqual(violations[0].path, bad_sql)
 
 
 class RuleN2Tests(FixtureMixin, unittest.TestCase):
@@ -160,6 +175,42 @@ class RuleN4Tests(FixtureMixin, unittest.TestCase):
         )
         violations = [v for v in self.run_validator() if "materialization" in v.message]
         self.assertEqual(violations, [])
+
+    def test_inline_config_with_dict_arg_before_materialized_is_detected(self) -> None:
+        # Bug 2: regex must not stop at first }
+        sql = self.models_root / "marts" / "customers" / "dim_customers.sql"
+        sql.write_text(
+            "{{ config(meta={'owner': 'analytics'}, materialized='view') }}\n"
+            "select customer_id, first_name from {{ ref('int_customers_enriched') }}\n"
+        )
+        violations = [v for v in self.run_validator() if "materialization" in v.message and "marts" in v.message]
+        self.assertEqual(len(violations), 1)
+        self.assertIn("'view'", violations[0].message)
+
+    def test_multiple_config_blocks_last_wins(self) -> None:
+        # Bug 3: dbt uses last-wins; validator must follow
+        sql = self.models_root / "marts" / "customers" / "dim_customers.sql"
+        sql.write_text(
+            "{{ config(materialized='table') }}\n"
+            "{{ config(materialized='view') }}\n"
+            "select customer_id, first_name from {{ ref('int_customers_enriched') }}\n"
+        )
+        violations = [v for v in self.run_validator() if "materialization" in v.message and "marts" in v.message]
+        # Last config says 'view'; layer expects 'table' — should flag
+        self.assertEqual(len(violations), 1)
+        self.assertIn("'view'", violations[0].message)
+
+    def test_malformed_dbt_project_yml_does_not_crash(self) -> None:
+        # Garble the project YAML; validator should not crash
+        (self.project_root / "dbt_project.yml").write_text(
+            "name: 'fixture'\nmodels:\n  fixture:\n    staging: [unbalanced\n"
+        )
+        # The check should either skip N4 gracefully or yield a synthetic violation,
+        # but it MUST NOT raise an uncaught exception.
+        try:
+            self.run_validator()
+        except yaml.YAMLError as exc:
+            self.fail(f"validator should handle malformed YAML, but raised: {exc}")
 
 
 class RuleN5Tests(FixtureMixin, unittest.TestCase):

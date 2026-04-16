@@ -49,7 +49,7 @@ class Violation:
 
 
 def _iter_models(path: Path) -> Iterator[Path]:
-    """Yield every .sql and .yml file under `path` that is inside `models_root`."""
+    """Yield every .sql and .yml file under `path` (recursively if `path` is a directory)."""
     if path.is_file():
         yield path
         return
@@ -125,6 +125,12 @@ def check_n1_prefix_matches_folder(models_root: Path) -> Iterator[Violation]:
                     message=f"model name '{stem}' in 'intermediate/' must start with 'int_'",
                 )
         elif layer == "marts":
+            if len(parts) < 3:
+                yield Violation(
+                    path=sql, edit=sql,
+                    message=f"marts file '{rel}' must live in 'marts/<domain>/'",
+                )
+                continue
             if not (stem.startswith("fact_") or stem.startswith("dim_")):
                 yield Violation(
                     path=sql, edit=sql,
@@ -191,10 +197,8 @@ def check_n2_sql_yml_pairing(models_root: Path) -> Iterator[Violation]:
             )
 
 
-_INLINE_MATERIALIZED_RE = re.compile(
-    r"{{\s*config\s*\([^}]*?materialized\s*=\s*['\"](\w+)['\"]",
-    re.DOTALL,
-)
+_CONFIG_BLOCK_RE = re.compile(r"{{\s*config\s*\(.*?\)\s*}}", re.DOTALL)
+_MATERIALIZED_KWARG_RE = re.compile(r"materialized\s*=\s*['\"](\w+)['\"]")
 
 EXPECTED_MATERIALIZATION = {
     "staging": "view",
@@ -229,9 +233,13 @@ def check_n4_materialization(models_root: Path, project_root: Path) -> Iterator[
     project_config: dict = {}
     project_name: str | None = None
     if project_yml.is_file():
-        with open(project_yml) as f:
-            project_config = yaml.safe_load(f) or {}
-        project_name = project_config.get("name")
+        try:
+            with open(project_yml) as f:
+                project_config = yaml.safe_load(f) or {}
+        except yaml.YAMLError:
+            # Malformed project config — fall back to defaults; emit no rule violation.
+            project_config = {}
+        project_name = project_config.get("name") if isinstance(project_config, dict) else None
 
     for sql in sorted(models_root.rglob("*.sql")):
         rel = sql.relative_to(models_root)
@@ -240,10 +248,12 @@ def check_n4_materialization(models_root: Path, project_root: Path) -> Iterator[
         if expected is None:
             continue
         text = sql.read_text()
-        m = _INLINE_MATERIALIZED_RE.search(text)
-        if m:
-            actual = m.group(1)
-        else:
+        actual: str | None = None
+        for block in _CONFIG_BLOCK_RE.finditer(text):
+            m = _MATERIALIZED_KWARG_RE.search(block.group(0))
+            if m:
+                actual = m.group(1)  # last wins
+        if actual is None:
             from_project = _resolve_materialization_from_project(project_config, layer, project_name)
             actual = from_project if from_project else "view"  # dbt default
         if actual != expected:
