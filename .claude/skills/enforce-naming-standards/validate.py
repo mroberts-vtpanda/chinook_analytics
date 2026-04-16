@@ -26,7 +26,7 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Iterator
+from typing import Iterator
 
 import yaml
 
@@ -48,7 +48,7 @@ class Violation:
     message: str
 
 
-def _iter_models(path: Path, models_root: Path) -> Iterator[Path]:
+def _iter_models(path: Path) -> Iterator[Path]:
     """Yield every .sql and .yml file under `path` that is inside `models_root`."""
     if path.is_file():
         yield path
@@ -58,6 +58,17 @@ def _iter_models(path: Path, models_root: Path) -> Iterator[Path]:
             yield entry
 
 
+def _walk_up_for_project(start: Path) -> Path | None:
+    """Walk up from `start` looking for a dir containing dbt_project.yml. None if not found."""
+    candidate = start if start.is_dir() else start.parent
+    while True:
+        if (candidate / "dbt_project.yml").is_file():
+            return candidate
+        if candidate == candidate.parent:
+            return None
+        candidate = candidate.parent
+
+
 def _resolve_target(arg: str | None) -> tuple[Path, Path, Path]:
     """Resolve the CLI path argument.
 
@@ -65,17 +76,15 @@ def _resolve_target(arg: str | None) -> tuple[Path, Path, Path]:
     Raises SystemExit(2) if the path can't be located.
     """
     if arg is None:
-        project_root = REPO_ROOT_DEFAULT.resolve()
+        project_root = (
+            _walk_up_for_project(Path.cwd())
+            or _walk_up_for_project(Path(__file__).resolve().parent)
+            or REPO_ROOT_DEFAULT.resolve()
+        )
     else:
         p = Path(arg).resolve()
-        # Walk up to find the project root (the directory containing dbt_project.yml).
-        candidate = p if p.is_dir() else p.parent
-        while candidate != candidate.parent:
-            if (candidate / "dbt_project.yml").is_file():
-                project_root = candidate
-                break
-            candidate = candidate.parent
-        else:
+        project_root = _walk_up_for_project(p)
+        if project_root is None:
             print(f"error: could not locate dbt_project.yml above {p}", file=sys.stderr)
             raise SystemExit(2)
 
@@ -89,7 +98,10 @@ def _resolve_target(arg: str | None) -> tuple[Path, Path, Path]:
 
 
 def run_checks(models_root: Path, project_root: Path) -> list[Violation]:
-    """Run all rule checks against the given models tree. Returns sorted violations."""
+    """Run all rule checks against the given models tree. Returns sorted violations.
+
+    No rules are implemented yet — they are added in subsequent tasks (N1–N5).
+    """
     violations: list[Violation] = []
     # Rules will be added in subsequent tasks.
     return sorted(violations, key=lambda v: (str(v.path), v.message))
@@ -113,11 +125,11 @@ def main(argv: list[str] | None = None) -> int:
     if target.is_file():
         walked = [target]
     else:
-        walked = [p for p in _iter_models(target, models_root)]
+        walked = [p for p in _iter_models(target)]
 
     for f in walked:
         relevant = by_path.get(f, [])
-        # Also include violations whose path is a folder ancestor of f (snake_case folder issues)
+        # Rule N3 may attach violations to folder paths; surface them against each walked file under that folder.
         for path, vs in by_path.items():
             if path != f and path.is_dir() and f.is_relative_to(path):
                 relevant = relevant + vs
@@ -141,7 +153,7 @@ def main(argv: list[str] | None = None) -> int:
                 rel = f
             print(f"✓ {rel}")
 
-    # Folder-only violations (e.g. snake_case folder names) that don't attach to any walked file
+    # Rule N3 folder-only violations: any folder violation whose path isn't an ancestor of any walked file.
     folder_only = [v for path, vs in by_path.items() for v in vs if path.is_dir() and not any(w.is_relative_to(path) for w in walked)]
     for v in folder_only:
         try:
