@@ -132,13 +132,34 @@ def check_n1_prefix_matches_folder(models_root: Path) -> Iterator[Violation]:
                 )
 
 
+def check_n2_sql_yml_pairing(models_root: Path) -> Iterator[Violation]:
+    """N2: Every .sql has a sibling .yml; every .yml (other than _*.yml) has a sibling .sql."""
+    for sql in sorted(models_root.rglob("*.sql")):
+        yml = sql.with_suffix(".yml")
+        if not yml.exists():
+            yield Violation(
+                path=sql, edit=sql,
+                message=f"no companion .yml for {sql.relative_to(models_root)}",
+            )
+    for yml in sorted(models_root.rglob("*.yml")):
+        if yml.stem.startswith("_"):
+            continue
+        sql = yml.with_suffix(".sql")
+        if not sql.exists():
+            yield Violation(
+                path=yml, edit=yml,
+                message=f"no companion .sql for {yml.relative_to(models_root)}",
+            )
+
+
 def run_checks(models_root: Path, project_root: Path) -> list[Violation]:
     """Run all rule checks against the given models tree. Returns sorted violations.
 
-    Rules: N1.
+    Rules: N1, N2.
     """
     violations: list[Violation] = []
     violations.extend(check_n1_prefix_matches_folder(models_root))
+    violations.extend(check_n2_sql_yml_pairing(models_root))
     return sorted(violations, key=lambda v: (str(v.path), v.message))
 
 

@@ -77,5 +77,24 @@ class RuleN1Tests(FixtureMixin, unittest.TestCase):
         self.assertEqual(violations[0].path, bad)
 
 
+class RuleN2Tests(FixtureMixin, unittest.TestCase):
+    def test_sql_without_yml_is_flagged(self) -> None:
+        (self.models_root / "marts" / "customers" / "dim_customers.yml").unlink()
+        violations = [v for v in self.run_validator() if "no companion .yml" in v.message]
+        self.assertEqual(len(violations), 1)
+        self.assertEqual(violations[0].path, self.models_root / "marts" / "customers" / "dim_customers.sql")
+
+    def test_yml_without_sql_is_flagged(self) -> None:
+        (self.models_root / "marts" / "customers" / "dim_customers.sql").unlink()
+        violations = [v for v in self.run_validator() if "no companion .sql" in v.message]
+        self.assertEqual(len(violations), 1)
+        self.assertEqual(violations[0].path, self.models_root / "marts" / "customers" / "dim_customers.yml")
+
+    def test_leading_underscore_yml_without_sql_is_not_flagged(self) -> None:
+        # _chinook__sources.yml has no SQL sibling and shouldn't be flagged
+        violations = [v for v in self.run_validator() if "no companion .sql" in v.message]
+        self.assertEqual(violations, [])
+
+
 if __name__ == "__main__":
     unittest.main()
