@@ -1,0 +1,10 @@
+version: 2
+
+models:
+  - name: stg_chinook__customers
+    description: "Cleaned customer rows from the chinook source."
+    columns:
+      - name: customer_id
+        description: "PK"
+      - name: first_name
+        description: "Customer first name"

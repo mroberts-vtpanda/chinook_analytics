@@ -1,0 +1,10 @@
+version: 2
+
+models:
+  - name: dim_customers
+    description: "Customer dimension (one row per customer)."
+    columns:
+      - name: customer_id
+        description: "Natural key"
+      - name: first_name
+        description: "Customer first name"

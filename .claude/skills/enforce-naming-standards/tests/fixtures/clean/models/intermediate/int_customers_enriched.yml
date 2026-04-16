@@ -1,0 +1,10 @@
+version: 2
+
+models:
+  - name: int_customers_enriched
+    description: "One row per customer, enriched (placeholder)."
+    columns:
+      - name: customer_id
+        description: "PK"
+      - name: first_name
+        description: "Customer first name"
