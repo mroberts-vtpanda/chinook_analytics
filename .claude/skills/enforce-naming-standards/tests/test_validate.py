@@ -162,5 +162,27 @@ class RuleN4Tests(FixtureMixin, unittest.TestCase):
         self.assertEqual(violations, [])
 
 
+class RuleN5Tests(FixtureMixin, unittest.TestCase):
+    def test_sources_file_with_wrong_name_is_flagged(self) -> None:
+        old = self.models_root / "staging" / "chinook" / "_chinook__sources.yml"
+        new = self.models_root / "staging" / "chinook" / "_sources.yml"
+        old.rename(new)
+        violations = [v for v in self.run_validator() if "sources file" in v.message]
+        self.assertEqual(len(violations), 1)
+        self.assertIn("_chinook__sources.yml", violations[0].message)
+
+    def test_correctly_named_sources_file_is_not_flagged(self) -> None:
+        violations = [v for v in self.run_validator() if "sources file" in v.message]
+        self.assertEqual(violations, [])
+
+    def test_yaml_without_sources_block_is_not_flagged(self) -> None:
+        # Create a non-sources YAML in the staging/chinook/ folder — should not trip N5
+        (self.models_root / "staging" / "chinook" / "_other.yml").write_text(
+            "version: 2\nseeds: []\n"
+        )
+        violations = [v for v in self.run_validator() if "sources file" in v.message]
+        self.assertEqual(violations, [])
+
+
 if __name__ == "__main__":
     unittest.main()

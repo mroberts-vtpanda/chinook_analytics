@@ -253,16 +253,35 @@ def check_n4_materialization(models_root: Path, project_root: Path) -> Iterator[
             )
 
 
-def run_checks(models_root: Path, project_root: Path) -> list[Violation]:
-    """Run all rule checks against the given models tree. Returns sorted violations.
+def check_n5_sources_naming(models_root: Path) -> Iterator[Violation]:
+    """N5: source-defining YAMLs in staging/<source>/ must be named _<source>__sources.yml."""
+    staging = models_root / "staging"
+    if not staging.is_dir():
+        return
+    for source_dir in sorted(p for p in staging.iterdir() if p.is_dir()):
+        source = source_dir.name
+        expected = f"_{source}__sources.yml"
+        for yml in sorted(source_dir.glob("*.yml")):
+            try:
+                with open(yml) as f:
+                    doc = yaml.safe_load(f) or {}
+            except yaml.YAMLError:
+                continue
+            if isinstance(doc, dict) and "sources" in doc and yml.name != expected:
+                yield Violation(
+                    path=yml, edit=yml,
+                    message=f"sources file '{yml.name}' must be named '{expected}'",
+                )
 
-    Rules: N1, N2, N3, N4.
-    """
+
+def run_checks(models_root: Path, project_root: Path) -> list[Violation]:
+    """Run all five rule checks against the given models tree. Returns sorted violations."""
     violations: list[Violation] = []
     violations.extend(check_n1_prefix_matches_folder(models_root))
     violations.extend(check_n2_sql_yml_pairing(models_root))
     violations.extend(check_n3_snake_case(models_root))
     violations.extend(check_n4_materialization(models_root, project_root))
+    violations.extend(check_n5_sources_naming(models_root))
     return sorted(violations, key=lambda v: (str(v.path), v.message))
 
 
